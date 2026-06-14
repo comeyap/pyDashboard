@@ -43,19 +43,31 @@
           <input type="text" id="f-description" placeholder="간단한 설명" />
         </label>
 
-        <label>스크립트 절대 경로 *
-          <input type="text" id="f-script_path" required placeholder="/Users/me/proj/main.py" />
+        <label>스크립트 경로 (식별/기본 실행용)
+          <span class="with-browse">
+            <input type="text" id="f-script_path" placeholder="/Users/me/proj/main.py" />
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openBrowser('f-script_path','file')">📁 찾아보기</button>
+          </span>
         </label>
 
-        <label>Python 실행 경로 (가상환경 등)
+        <label>실행 커맨드 (선택 — 지정 시 이 커맨드로 실행)
+          <input type="text" id="f-command" placeholder="예: .venv/bin/streamlit run app.py / scripts/run_live.sh" />
+        </label>
+
+        <p class="hint">※ 비우면 <b>Python 실행 경로 + 스크립트 경로</b>로 실행합니다. Streamlit·쉘 스크립트 등은 위 커맨드를 사용하세요.</p>
+
+        <label>Python 실행 경로 (커맨드 미사용 시)
           <input type="text" id="f-python_path" placeholder="/Users/me/proj/.venv/bin/python (기본: python3)" />
         </label>
 
         <label>작업 디렉토리
-          <input type="text" id="f-working_dir" placeholder="비우면 스크립트 폴더 사용" />
+          <span class="with-browse">
+            <input type="text" id="f-working_dir" placeholder="비우면 스크립트 폴더 사용" />
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openBrowser('f-working_dir','dir')">📁 찾아보기</button>
+          </span>
         </label>
 
-        <label>실행 인자 (공백 구분)
+        <label>실행 인자 (공백 구분, 커맨드 미사용 시)
           <input type="text" id="f-args" placeholder="--mode prod --verbose" />
         </label>
 
@@ -73,7 +85,10 @@
         </label>
 
         <label id="row-plist" class="hidden">Plist 경로
-          <input type="text" id="f-plist_path" placeholder="~/Library/LaunchAgents/com.me.job.plist" />
+          <span class="with-browse">
+            <input type="text" id="f-plist_path" placeholder="~/Library/LaunchAgents/com.me.job.plist" />
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openBrowser('f-plist_path','file')">📁 찾아보기</button>
+          </span>
         </label>
 
         <p id="form-error" class="error hidden"></p>
@@ -93,6 +108,21 @@
       <pre id="log-content" class="log"></pre>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="closeLogModal()">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 파일/디렉토리 탐색기 모달 -->
+  <div id="fs-modal" class="modal-backdrop hidden">
+    <div class="modal modal-wide">
+      <h2>경로 선택</h2>
+      <div class="fs-current">
+        <span class="muted">현재:</span> <span id="fs-path" class="mono"></span>
+      </div>
+      <div id="fs-list" class="fs-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeBrowser()">취소</button>
+        <button type="button" class="btn btn-primary" id="fs-select-dir" onclick="selectCurrentDir()">이 폴더 선택</button>
       </div>
     </div>
   </div>

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from typing import Any, Optional
 
@@ -116,6 +117,54 @@ def project_logs(project_id: str) -> Any:
         return jsonify({"error": "프로젝트를 찾을 수 없습니다."}), 404
     lines = request.args.get("lines", default=100, type=int)
     return jsonify({"log": process_manager.tail_log(project, lines=lines)})
+
+
+@api.get("/fs")
+def browse_fs() -> Any:
+    """서버측 파일시스템 탐색 (경로 선택용 '찾아보기').
+
+    로컬 대시보드(127.0.0.1 바인딩) 전용 편의 기능. 주어진 디렉토리의
+    하위 폴더와 파일 목록을 반환한다. path 미지정 시 홈 디렉토리.
+    """
+    raw = request.args.get("path", "").strip()
+    base = os.path.expanduser(raw) if raw else os.path.expanduser("~")
+    base = os.path.abspath(base)
+
+    # 파일이 지정되면 그 부모 디렉토리를 보여준다.
+    if os.path.isfile(base):
+        base = os.path.dirname(base)
+    if not os.path.isdir(base):
+        return jsonify({"error": f"디렉토리가 아닙니다: {base}"}), 400
+
+    dirs: list[dict[str, str]] = []
+    files: list[dict[str, str]] = []
+    try:
+        with os.scandir(base) as it:
+            for entry in it:
+                if entry.name.startswith("."):
+                    continue  # 숨김 항목 제외
+                full = os.path.join(base, entry.name)
+                try:
+                    if entry.is_dir():
+                        dirs.append({"name": entry.name, "path": full})
+                    elif entry.is_file():
+                        files.append({"name": entry.name, "path": full})
+                except OSError:
+                    continue
+    except PermissionError:
+        return jsonify({"error": f"접근 권한이 없습니다: {base}"}), 403
+
+    dirs.sort(key=lambda d: d["name"].lower())
+    files.sort(key=lambda f: f["name"].lower())
+    parent = os.path.dirname(base)
+    return jsonify(
+        {
+            "path": base,
+            "parent": parent if parent != base else None,
+            "dirs": dirs,
+            "files": files,
+        }
+    )
 
 
 @api.get("/system/schedules")

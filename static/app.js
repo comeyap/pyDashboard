@@ -176,6 +176,7 @@ async function onEdit(id) {
     document.getElementById("f-name").value = p.name || "";
     document.getElementById("f-description").value = p.description || "";
     document.getElementById("f-script_path").value = p.script_path || "";
+    document.getElementById("f-command").value = p.command || "";
     document.getElementById("f-python_path").value = p.python_path || "";
     document.getElementById("f-working_dir").value = p.working_dir || "";
     document.getElementById("f-args").value = (p.args || []).join(" ");
@@ -201,6 +202,7 @@ async function onSubmit(e) {
     name: document.getElementById("f-name").value,
     description: document.getElementById("f-description").value,
     script_path: document.getElementById("f-script_path").value,
+    command: document.getElementById("f-command").value,
     python_path: document.getElementById("f-python_path").value,
     working_dir: document.getElementById("f-working_dir").value,
     args: document.getElementById("f-args").value,
@@ -222,6 +224,57 @@ async function onSubmit(e) {
     el.textContent = err.message;
     el.classList.remove("hidden");
   }
+}
+
+// ---- 파일/디렉토리 탐색기 ----
+let fsTargetField = null;   // 선택 결과를 채울 input id
+let fsMode = "file";        // "file" | "dir"
+let fsCurrentPath = "";
+
+async function openBrowser(targetFieldId, mode) {
+  fsTargetField = targetFieldId;
+  fsMode = mode || "file";
+  document.getElementById("fs-select-dir").classList.toggle("hidden", fsMode !== "dir");
+  // 입력란에 이미 경로가 있으면 그 위치에서 시작
+  const cur = document.getElementById(targetFieldId).value.trim();
+  await fsLoad(cur || "");
+  document.getElementById("fs-modal").classList.remove("hidden");
+}
+function closeBrowser() {
+  document.getElementById("fs-modal").classList.add("hidden");
+}
+
+async function fsLoad(path) {
+  try {
+    const data = await api(`/api/fs?path=${encodeURIComponent(path)}`);
+    fsCurrentPath = data.path;
+    document.getElementById("fs-path").textContent = data.path;
+
+    const rows = [];
+    if (data.parent) {
+      rows.push(`<div class="fs-item fs-dir" onclick="fsLoad('${escapeAttr(data.parent)}')">📂 ..</div>`);
+    }
+    for (const d of data.dirs) {
+      rows.push(`<div class="fs-item fs-dir" onclick="fsLoad('${escapeAttr(d.path)}')">📁 ${escapeHtml(d.name)}</div>`);
+    }
+    if (fsMode === "file") {
+      for (const f of data.files) {
+        rows.push(`<div class="fs-item fs-file" onclick="fsPick('${escapeAttr(f.path)}')">📄 ${escapeHtml(f.name)}</div>`);
+      }
+    }
+    document.getElementById("fs-list").innerHTML =
+      rows.join("") || `<div class="muted" style="padding:12px">(항목 없음)</div>`;
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+function fsPick(path) {
+  if (fsTargetField) document.getElementById(fsTargetField).value = path;
+  closeBrowser();
+}
+function selectCurrentDir() {
+  fsPick(fsCurrentPath);
 }
 
 // ---- 유틸 ----
@@ -265,6 +318,9 @@ async function init() {
   });
   document.getElementById("log-modal").addEventListener("click", (e) => {
     if (e.target.id === "log-modal") closeLogModal();
+  });
+  document.getElementById("fs-modal").addEventListener("click", (e) => {
+    if (e.target.id === "fs-modal") closeBrowser();
   });
 
   await refresh();

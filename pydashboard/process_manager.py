@@ -12,9 +12,9 @@
 from __future__ import annotations
 
 import os
-import signal
+import shlex
+import shutil
 import subprocess
-import time
 from datetime import datetime
 from typing import Any, Optional
 
@@ -26,6 +26,21 @@ from . import config
 STATE_RUNNING = "running"
 STATE_STOPPED = "stopped"
 STATE_ERROR = "error"
+
+
+def _resolve_executable(exe: str, working_dir: Optional[str]) -> bool:
+    """커맨드 첫 토큰이 실행 가능한지 확인한다.
+
+    절대/상대 경로 파일 존재, 또는 PATH 등록 여부(shutil.which)를 본다.
+    상대 경로는 working_dir 기준으로도 검사한다.
+    """
+    if os.path.isabs(exe):
+        return os.path.exists(exe)
+    if os.sep in exe or (os.altsep and os.altsep in exe):
+        base = working_dir or os.getcwd()
+        return os.path.exists(os.path.join(base, exe))
+    # PATH 탐색
+    return shutil.which(exe) is not None
 
 
 def _pid_file(project_id: str) -> str:
@@ -65,37 +80,35 @@ def _proc_matches_project(proc: psutil.Process, project_id: str) -> bool:
     return env.get(config.ENV_PROJECT_KEY) == project_id
 
 
-def _find_by_cmdline(script_path: str) -> Optional[psutil.Process]:
+def _find_by_cmdline(identify_path: str) -> Optional[psutil.Process]:
     """OS 스케줄러 등 외부에서 실행된 프로세스를 cmdline 으로 best-effort 매칭한다.
 
     기술 고려사항 #2(오탐 방지)에 따라 단순 substring 매칭을 쓰지 않는다.
-    - 인터프리터가 python 계열일 것
-    - script_path 와 '정확히 일치'하는 인자(arg)가 있을 것 (substring 금지)
+    - identify_path(보통 스크립트 절대경로)와 '정확히 일치'하는 인자(arg)가 있을 것
+      (substring 금지 → 경로가 우연히 문자열에 포함된 프로세스는 매칭 안 됨)
     - 대시보드 자기 자신(PID)은 제외
-    이렇게 하면 cmdline 문자열에 경로가 우연히 포함된 프로세스(에디터, 셸,
-    대시보드 자신 등)를 실행 중으로 오인하지 않는다.
+    인터프리터 종류는 제한하지 않는다. python 직접 실행뿐 아니라 streamlit,
+    쉘 래퍼(run_live.sh) 등 다양한 실행 형태를 지원하기 위함이다.
+    정확 인자 일치만으로도 오탐은 충분히 차단된다(에디터로 파일을 '연' 경우 등
+    극히 드문 케이스는 best-effort 한계로 둔다).
     """
-    if not script_path:
+    if not identify_path:
         return None
     try:
-        target_real = os.path.realpath(script_path)
+        target_real = os.path.realpath(identify_path)
     except OSError:
-        target_real = script_path
+        target_real = identify_path
     self_pid = os.getpid()
 
-    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+    for proc in psutil.process_iter(["pid", "cmdline"]):
         try:
             if proc.info.get("pid") == self_pid:
                 continue
             cmdline = proc.info.get("cmdline") or []
             if len(cmdline) < 2:
                 continue
-            name = (proc.info.get("name") or "").lower()
-            interp = os.path.basename(cmdline[0]).lower()
-            if "python" not in name and "python" not in interp:
-                continue
             for arg in cmdline[1:]:
-                if arg == script_path:
+                if arg == identify_path:
                     return proc
                 try:
                     if os.path.realpath(arg) == target_real:
@@ -173,15 +186,32 @@ def start(project: dict[str, Any]) -> dict[str, Any]:
     if status["state"] == STATE_RUNNING:
         raise ProcessError("이미 실행 중입니다 (중복 실행 방지).")
 
+    command = (project.get("command") or "").strip()
     script_path = project.get("script_path", "")
-    if not script_path or not os.path.exists(script_path):
-        raise ProcessError(f"스크립트를 찾을 수 없습니다: {script_path}")
 
-    python_path = project.get("python_path") or "python3"
-    args = project.get("args", [])
-    working_dir = project.get("working_dir") or os.path.dirname(script_path) or None
-
-    cmd = [python_path, script_path, *args]
+    if command:
+        # 임의 커맨드 실행 (streamlit / 쉘 래퍼 / python -m 등).
+        # 셸 인젝션을 피하기 위해 shell=True 대신 shlex 로 토큰 분리.
+        try:
+            cmd = shlex.split(command)
+        except ValueError as exc:
+            raise ProcessError(f"커맨드 파싱 실패: {exc}") from exc
+        if not cmd:
+            raise ProcessError("실행 커맨드가 비어 있습니다.")
+        # 첫 토큰(실행 파일)이 PATH 또는 working_dir 기준으로 존재하는지 확인
+        working_dir = project.get("working_dir") or (
+            os.path.dirname(script_path) if script_path else None
+        )
+        if not _resolve_executable(cmd[0], working_dir):
+            raise ProcessError(f"실행 파일을 찾을 수 없습니다: {cmd[0]}")
+    else:
+        # 기본 모드: python <script.py> <args>
+        if not script_path or not os.path.exists(script_path):
+            raise ProcessError(f"스크립트를 찾을 수 없습니다: {script_path}")
+        python_path = project.get("python_path") or "python3"
+        args = project.get("args", [])
+        working_dir = project.get("working_dir") or os.path.dirname(script_path) or None
+        cmd = [python_path, script_path, *args]
 
     env = os.environ.copy()
     env[config.ENV_PROJECT_KEY] = project_id

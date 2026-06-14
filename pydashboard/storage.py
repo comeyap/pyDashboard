@@ -84,6 +84,9 @@ def _normalize(payload: dict[str, Any]) -> dict[str, Any]:
         "python_path": (payload.get("python_path") or "python3").strip() or "python3",
         "working_dir": (payload.get("working_dir") or "").strip(),
         "args": [str(a) for a in args],
+        # 임의 실행 커맨드. 지정 시 python_path+script_path 대신 이 커맨드로 실행한다.
+        # 예: "streamlit run app.py", "scripts/run_live.sh", "uv run python -m live"
+        "command": (payload.get("command") or "").strip(),
         "scheduler_type": scheduler_type,
         # cron 표현식 (scheduler_type == cron). 예: "0 0 * * *"
         "schedule_expr": (payload.get("schedule_expr") or "").strip(),
@@ -92,12 +95,17 @@ def _normalize(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def add_project(payload: dict[str, Any]) -> dict[str, Any]:
-    data = _normalize(payload)
+def _validate(data: dict[str, Any]) -> None:
     if not data["name"]:
         raise ValueError("프로젝트 이름은 필수입니다.")
-    if not data["script_path"]:
-        raise ValueError("스크립트 경로는 필수입니다.")
+    # 실행/식별을 위해 스크립트 경로 또는 커맨드 중 최소 하나는 필요하다.
+    if not data["script_path"] and not data["command"]:
+        raise ValueError("스크립트 경로 또는 실행 커맨드 중 하나는 필수입니다.")
+
+
+def add_project(payload: dict[str, Any]) -> dict[str, Any]:
+    data = _normalize(payload)
+    _validate(data)
 
     data["id"] = uuid.uuid4().hex
     data["created_at"] = _now_iso()
@@ -111,10 +119,7 @@ def add_project(payload: dict[str, Any]) -> dict[str, Any]:
 
 def update_project(project_id: str, payload: dict[str, Any]) -> Optional[dict[str, Any]]:
     data = _normalize(payload)
-    if not data["name"]:
-        raise ValueError("프로젝트 이름은 필수입니다.")
-    if not data["script_path"]:
-        raise ValueError("스크립트 경로는 필수입니다.")
+    _validate(data)
 
     with _LOCK:
         projects = _read_all()

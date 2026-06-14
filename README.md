@@ -6,8 +6,10 @@
 - **실시간 상태 모니터링** — 상시 실행(always-on) 프로세스의 생존 여부를 PID 기반으로 추적
 - **스케줄 파싱·시각화** — 시스템 `crontab` 및 macOS `LaunchAgents(plist)`를 읽어 **다음 실행 예정 일시** 계산
 - **프로세스 제어** — 대시보드에서 즉시 실행(Run Now) / 강제 중지(Stop), **중복 실행 자동 차단**
+- **다양한 실행 형태** — `python script.py`뿐 아니라 **임의 실행 커맨드**(Streamlit, 쉘 래퍼, `python -m`, `uv run` 등) 지원
+- **경로 찾아보기** — 절대경로를 직접 입력하거나 **📁 파일 탐색기**로 선택
 - **오탐 방지 식별** — 실행 시 PID 파일 + 전용 환경변수(`PYDASHBOARD_PROJECT_ID`)를 주입하고,
-  외부 실행 프로세스는 인터프리터 종류 + 스크립트 경로 **정확 일치**로 매칭
+  외부 실행 프로세스는 스크립트 경로 **정확 일치**(substring 금지)로 매칭
 
 ## 화면 구성
 
@@ -76,13 +78,34 @@ PYDASHBOARD_PORT=9000 PYDASHBOARD_UI_POLL=3 python app.py
 |------|------|------|
 | 프로젝트 이름 | ✅ | 카드에 표시될 이름 |
 | 설명 | | 간단한 설명 |
-| 스크립트 절대 경로 | ✅ | 실행할 `.py` 파일 (예: `/Users/me/proj/main.py`) |
-| Python 실행 경로 | | 가상환경 등 (예: `/Users/me/proj/.venv/bin/python`, 기본 `python3`) |
-| 작업 디렉토리 | | 비우면 스크립트 폴더 사용 |
-| 실행 인자 | | 공백 구분 (예: `--mode prod`) |
+| 스크립트 경로 | △ | 식별/기본 실행용 `.py`·스크립트 경로. **📁 찾아보기** 버튼으로 선택 가능 |
+| 실행 커맨드 | △ | 지정 시 이 커맨드로 실행 (Streamlit·쉘·`python -m` 등). 비우면 `Python 실행 경로 + 스크립트` 사용 |
+| Python 실행 경로 | | 커맨드 미사용 시 (예: `/Users/me/proj/.venv/bin/python`, 기본 `python3`) |
+| 작업 디렉토리 | | 비우면 스크립트 폴더 사용. **📁 찾아보기** 지원 |
+| 실행 인자 | | 커맨드 미사용 시 공백 구분 (예: `--mode prod`) |
 | 스케줄러 타입 | | `상시 실행` / `Cron` / `LaunchAgent` / `수동` |
 | Cron 표현식 | | `Cron` 타입일 때 (예: `0 0 * * *`) |
-| Plist 경로 | | `LaunchAgent` 타입일 때 |
+| Plist 경로 | | `LaunchAgent` 타입일 때. **📁 찾아보기** 지원 |
+
+> △ **스크립트 경로**와 **실행 커맨드** 중 최소 하나는 필요합니다.
+> 경로는 직접 입력하거나 **📁 찾아보기** 버튼으로 서버 파일시스템을 탐색해 선택할 수 있습니다.
+
+### 등록 예시
+
+**일반 Python 스크립트**
+- 스크립트 경로: `/Users/me/proj/main.py`
+- Python 실행 경로: `/Users/me/proj/.venv/bin/python`
+
+**Streamlit 앱** (`streamlit run app.py`)
+- 스크립트 경로: `/Users/me/proj/app.py` *(실행 중 프로세스 식별용)*
+- 실행 커맨드: `.venv/bin/streamlit run app.py`
+- 작업 디렉토리: `/Users/me/proj`
+
+**쉘 래퍼 / 스케줄 잡** (예: launchd가 호출하는 `run_live.sh`)
+- 스크립트 경로: `/Users/me/proj/scripts/run_live.sh` *(식별용)*
+- 실행 커맨드: `scripts/run_live.sh` *(대시보드에서 직접 실행 시)*
+- 작업 디렉토리: `/Users/me/proj`
+- 스케줄러 타입: `LaunchAgent`, Plist 경로: `~/Library/LaunchAgents/com.me.live.plist`
 
 ## 디렉토리 구조
 
@@ -128,6 +151,7 @@ pyDashboard/
 | `POST` | `/api/projects/<id>/run` | 즉시 실행 (중복 시 `409`) |
 | `POST` | `/api/projects/<id>/stop` | 강제 중지 |
 | `GET` | `/api/projects/<id>/logs` | 실행 로그 tail |
+| `GET` | `/api/fs?path=<dir>` | 서버 파일시스템 탐색 (경로 선택용, 로컬 전용) |
 | `GET` | `/api/system/schedules` | 시스템 cron + LaunchAgents 전체 파싱 |
 
 ## 라이선스
