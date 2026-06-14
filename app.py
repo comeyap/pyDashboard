@@ -10,9 +10,13 @@
 
 from __future__ import annotations
 
+import atexit
+import json
 import os
 import socket
 import threading
+import urllib.error
+import urllib.request
 import webbrowser
 
 from flask import Flask, render_template
@@ -57,6 +61,64 @@ def resolve_port(host: str, preferred: int, max_tries: int = 20) -> int:
         return s.getsockname()[1]
 
 
+def is_pydashboard_running(host: str, port: int, timeout: float = 0.5) -> bool:
+    """host:port 에 떠 있는 서버가 'Pydashboard' 인스턴스인지 확인한다.
+
+    /api/ping 응답의 app 필드로 식별 → 다른 프로그램(예: 8800을 쓰는 무관한 앱)을
+    우리 인스턴스로 오인하지 않는다.
+    """
+    url = f"http://{_bind_host(host)}:{port}/api/ping"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return data.get("app") == "pydashboard"
+    except (urllib.error.URLError, OSError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def _read_lock() -> dict:
+    try:
+        with open(config.SERVER_LOCK, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_lock(host: str, port: int) -> None:
+    config.ensure_dirs()
+    try:
+        with open(config.SERVER_LOCK, "w", encoding="utf-8") as f:
+            json.dump({"pid": os.getpid(), "host": host, "port": port}, f)
+    except OSError:
+        pass
+
+
+def _clear_lock() -> None:
+    try:
+        os.remove(config.SERVER_LOCK)
+    except OSError:
+        pass
+
+
+def find_existing_instance(host: str, preferred: int) -> int | None:
+    """이미 실행 중인 Pydashboard 인스턴스의 포트를 반환한다. 없으면 None.
+
+    1) lock 파일에 기록된 포트를 우선 확인 (포트 자동전환된 경우 대응)
+    2) 그래도 없으면 preferred 포트를 확인
+    살아있지 않은(stale) lock 은 정리한다.
+    """
+    lock = _read_lock()
+    locked_port = lock.get("port")
+    if isinstance(locked_port, int) and is_pydashboard_running(host, locked_port):
+        return locked_port
+    if locked_port is not None:
+        _clear_lock()  # stale
+
+    if is_pydashboard_running(host, preferred):
+        return preferred
+    return None
+
+
 def _should_open_browser() -> bool:
     """브라우저 자동 열기 여부. PYDASHBOARD_NO_BROWSER=1 이면 끈다."""
     return os.environ.get("PYDASHBOARD_NO_BROWSER", "0") != "1"
@@ -80,13 +142,26 @@ if __name__ == "__main__":
     host = os.environ.get("PYDASHBOARD_HOST", "127.0.0.1")
     debug = os.environ.get("PYDASHBOARD_DEBUG", "0") == "1"
 
-    # 포트가 이미 사용 중이면 자동으로 빈 포트를 찾는다.
+    # 단일 인스턴스: 이미 실행 중이면 새로 띄우지 않고 브라우저만 연다.
+    existing = find_existing_instance(host, preferred)
+    if existing is not None:
+        url = f"http://{_bind_host(host)}:{existing}"
+        print(f"[Pydashboard] 이미 실행 중입니다 → 브라우저만 엽니다: {url}")
+        if _should_open_browser():
+            webbrowser.open(url)
+        raise SystemExit(0)
+
+    # 포트가 (무관한 프로그램에 의해) 사용 중이면 자동으로 빈 포트를 찾는다.
     port = resolve_port(host, preferred)
     if port != preferred:
         print(f"[Pydashboard] 포트 {preferred} 사용 중 → {port} 으로 시작합니다.")
 
     url = f"http://{_bind_host(host)}:{port}"
     print(f"[Pydashboard] {url}")
+
+    # 실행 중 표시(lock) 기록 + 종료 시 정리
+    _write_lock(host, port)
+    atexit.register(_clear_lock)
 
     # 디버그(리로더) 모드에서는 중복 오픈을 피하기 위해 자동 열기 생략
     if not debug:

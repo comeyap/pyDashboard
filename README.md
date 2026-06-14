@@ -55,6 +55,10 @@ pip install -r requirements.txt
 Finder 에서 **`Pydashboard.command`** 을 더블클릭하면 가상환경 준비 → 서버 시작 →
 브라우저 자동 오픈까지 한 번에 진행됩니다. (터미널에서 `python app.py` 를 칠 필요 없음)
 
+> **단일 인스턴스** — 여러 번 더블클릭해도 서버는 하나만 유지됩니다. 이미 실행 중이면
+> 새로 띄우지 않고 **기존 인스턴스의 브라우저 탭만 새로 엽니다.** (`/api/ping` 으로 식별 +
+> `data/server.json` lock 으로 실제 포트 추적)
+
 > 터미널 창 없이 앱처럼 띄우고 싶으면 한 번만 `./scripts/build_macos_app.sh` 를 실행해
 > `Pydashboard.app` 을 만든 뒤, 그 앱을 더블클릭하세요.
 
@@ -181,6 +185,7 @@ pyDashboard/
 | `GET` | `/api/projects/<id>/logs` | 실행 로그 tail |
 | `GET` | `/api/fs?path=<dir>` | 서버 파일시스템 탐색 (경로 선택용, 로컬 전용) |
 | `GET` | `/api/system/detect?script_path=<path>` | 해당 스크립트로 OS에 등록된 스케줄 1회 탐지 |
+| `GET` | `/api/ping` | 인스턴스 식별 (`{app: "pydashboard"}`) |
 | `GET` | `/api/system/schedules` | 시스템 cron + LaunchAgents 전체 파싱 |
 
 ## 라이선스

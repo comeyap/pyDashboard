@@ -12,6 +12,8 @@ DATA_DIR = BASE_DIR / "data"
 PID_DIR = DATA_DIR / "pids"
 LOG_DIR = DATA_DIR / "logs"
 PROJECTS_FILE = DATA_DIR / "projects.json"
+# 단일 인스턴스 보장용 lock 파일 (실행 중 서버의 pid/host/port 기록)
+SERVER_LOCK = DATA_DIR / "server.json"
 
 # 프로세스를 대시보드가 실행했음을 표시하는 환경 변수 키.
 # PID 재사용으로 인한 오탐을 막기 위해 실행 시 프로젝트 id 를 주입한다.

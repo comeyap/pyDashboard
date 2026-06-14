@@ -16,8 +16,9 @@ dist/
 venv/
 env/
 
-# 런타임 데이터 (사용자별 등록 정보/PID/로그)
+# 런타임 데이터 (사용자별 등록 정보/PID/로그/실행 lock)
 data/projects.json
+data/server.json
 data/pids/*
 data/logs/*
 !data/pids/.gitkeep

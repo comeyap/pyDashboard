@@ -11,7 +11,7 @@ from typing import Any, Optional
 
 from flask import Blueprint, jsonify, request
 
-from . import config, process_manager, storage
+from . import __version__, config, process_manager, storage
 from . import schedulers
 
 api = Blueprint("api", __name__, url_prefix="/api")
@@ -46,6 +46,12 @@ def _project_view(project: dict[str, Any]) -> dict[str, Any]:
         "next_run": _iso(next_run),
         "detected": _detection_view(detected),
     }
+
+
+@api.get("/ping")
+def ping() -> Any:
+    """인스턴스 식별용. 단일 인스턴스 판별 시 이 응답으로 'Pydashboard 여부'를 확인."""
+    return jsonify({"app": "pydashboard", "version": __version__})
 
 
 @api.get("/config")

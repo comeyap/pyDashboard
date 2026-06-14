@@ -30,6 +30,7 @@ def isolate_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "PID_DIR", pid)
     monkeypatch.setattr(config, "LOG_DIR", log)
     monkeypatch.setattr(config, "PROJECTS_FILE", data / "projects.json")
+    monkeypatch.setattr(config, "SERVER_LOCK", data / "server.json")
     config.ensure_dirs()
     yield
 
