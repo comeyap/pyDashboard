@@ -113,6 +113,15 @@ main { padding: 24px; max-width: 1200px; margin: 0 auto; }
 .meta dt { color: var(--muted); }
 .meta dd { color: var(--text); word-break: break-all; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; }
+.badge-live {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(59,130,246,0.18);
+  color: var(--primary);
+  margin-left: 4px;
+}
 
 .card-actions { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
 .card-actions .spacer { flex: 1; }

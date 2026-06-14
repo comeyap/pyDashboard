@@ -49,6 +49,33 @@ def find_system_schedule(script_path: str) -> Optional[dict[str, Any]]:
     return None
 
 
+def detect_for_script(script_path: str) -> Optional[dict[str, Any]]:
+    """script_path 로 OS 에 이미 등록된 스케줄을 탐지해 정규화 반환한다.
+
+    프로젝트 등록 시 'cron/launchagent 선택 → 로컬 1회 조회 후 자동 채움'에 사용.
+    매칭 항목이 없으면 None.
+    """
+    if not script_path:
+        return None
+    entry = find_system_schedule(script_path)
+    if not entry:
+        return None
+
+    result: dict[str, Any] = {
+        "source": entry.get("source"),
+        "command": entry.get("command"),
+        "next_run": entry.get("next_run"),
+    }
+    if entry.get("source") == "cron":
+        result["scheduler_type"] = "cron"
+        result["schedule_expr"] = entry.get("expr", "")
+    elif entry.get("source") == "launchagent":
+        result["scheduler_type"] = "launchagent"
+        result["plist_path"] = entry.get("plist_path", "")
+        result["label"] = entry.get("label", "")
+    return result
+
+
 def list_system_schedules() -> list[dict[str, Any]]:
     """OS 에 등록된 모든 스케줄(cron + LaunchAgents)을 통합 반환한다.
 

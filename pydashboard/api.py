@@ -21,14 +21,30 @@ def _iso(dt: Optional[datetime]) -> Optional[str]:
     return dt.isoformat(timespec="seconds") if dt else None
 
 
+def _detection_view(det: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    if not det:
+        return None
+    out = dict(det)
+    out["next_run"] = _iso(det.get("next_run"))
+    return out
+
+
 def _project_view(project: dict[str, Any]) -> dict[str, Any]:
-    """프로젝트 + 실시간 상태 + 차기 실행 일시를 합친 응답 뷰."""
+    """프로젝트 + 실시간 상태 + 차기 실행 일시를 합친 응답 뷰.
+
+    cron/launchagent 타입은 매 조회(리프레시)마다 OS 스케줄을 다시 매칭해
+    현재 등록 상태를 반영한다.
+    """
     status = process_manager.get_status(project)
     next_run = schedulers.next_run_for_project(project)
+    detected = None
+    if project.get("scheduler_type") in ("cron", "launchagent"):
+        detected = schedulers.detect_for_script(project.get("script_path", ""))
     return {
         **project,
         "status": status,
         "next_run": _iso(next_run),
+        "detected": _detection_view(detected),
     }
 
 
@@ -165,6 +181,21 @@ def browse_fs() -> Any:
             "files": files,
         }
     )
+
+
+@api.get("/system/detect")
+def system_detect() -> Any:
+    """script_path 로 OS 에 이미 등록된 스케줄을 1회 조회한다.
+
+    등록 폼에서 cron/launchagent 선택 시 자동 채움 용도.
+    """
+    script_path = request.args.get("script_path", "").strip()
+    det = schedulers.detect_for_script(script_path)
+    if not det:
+        return jsonify({"found": False})
+    out = _detection_view(det)
+    out["found"] = True
+    return jsonify(out)
 
 
 @api.get("/system/schedules")

@@ -5,6 +5,7 @@
 
 - **실시간 상태 모니터링** — 상시 실행(always-on) 프로세스의 생존 여부를 PID 기반으로 추적
 - **스케줄 파싱·시각화** — 시스템 `crontab` 및 macOS `LaunchAgents(plist)`를 읽어 **다음 실행 예정 일시** 계산
+- **기존 스케줄 자동 탐지** — 등록 시 Cron/LaunchAgent 선택하면 OS에 이미 등록된 스케줄을 조회해 자동 채움. 새로고침 시 라이브 재조회
 - **프로세스 제어** — 대시보드에서 즉시 실행(Run Now) / 강제 중지(Stop), **중복 실행 자동 차단**
 - **다양한 실행 형태** — `python script.py`뿐 아니라 **임의 실행 커맨드**(Streamlit, 쉘 래퍼, `python -m`, `uv run` 등) 지원
 - **경로 찾아보기** — 절대경로를 직접 입력하거나 **📁 파일 탐색기**로 선택
@@ -49,12 +50,32 @@ pip install -r requirements.txt
 
 ## 실행
 
+### 원클릭 실행 (macOS, 권장)
+
+Finder 에서 **`Pydashboard.command`** 을 더블클릭하면 가상환경 준비 → 서버 시작 →
+브라우저 자동 오픈까지 한 번에 진행됩니다. (터미널에서 `python app.py` 를 칠 필요 없음)
+
+> 터미널 창 없이 앱처럼 띄우고 싶으면 한 번만 `./scripts/build_macos_app.sh` 를 실행해
+> `Pydashboard.app` 을 만든 뒤, 그 앱을 더블클릭하세요.
+
+### 터미널 실행
+
 ```bash
-python app.py
+python app.py     # 기동 후 브라우저가 자동으로 열립니다
 ```
 
 기본적으로 `http://127.0.0.1:8800` 에서 대시보드가 열립니다.
-브라우저로 접속한 뒤 우측 상단 **`+ 프로젝트 추가`** 버튼으로 모니터링할 Python 프로젝트를 등록하세요.
+우측 상단 **`+ 프로젝트 추가`** 버튼으로 모니터링할 Python 프로젝트를 등록하세요.
+브라우저 자동 열기를 끄려면 `PYDASHBOARD_NO_BROWSER=1` 을 설정합니다.
+
+## 테스트
+
+모든 로직은 `tests/` 의 pytest 스위트로 검증합니다.
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests/ -q
+```
 
 ### 환경 변수
 
@@ -65,6 +86,7 @@ python app.py
 | `PYDASHBOARD_UI_POLL` | `5` | UI 자동 갱신 주기(초) |
 | `PYDASHBOARD_SCHEDULE_REFRESH` | `60` | 시스템 스케줄 재파싱 기준(초) |
 | `PYDASHBOARD_DEBUG` | `0` | `1`이면 Flask 디버그 모드 |
+| `PYDASHBOARD_NO_BROWSER` | `0` | `1`이면 시작 시 브라우저 자동 열기 끔 |
 
 예시:
 
@@ -111,8 +133,12 @@ PYDASHBOARD_PORT=9000 PYDASHBOARD_UI_POLL=3 python app.py
 
 ```
 pyDashboard/
-├── app.py                       # 애플리케이션 진입점
+├── app.py                       # 애플리케이션 진입점 (+ 브라우저 자동 열기)
+├── Pydashboard.command          # macOS 원클릭 실행기 (더블클릭)
+├── scripts/build_macos_app.sh   # (선택) .app 번들 생성
 ├── requirements.txt
+├── requirements-dev.txt         # 테스트 의존성(pytest)
+├── tests/                       # pytest 스위트 (storage/schedulers/process/api/detect/launcher)
 ├── pydashboard/
 │   ├── config.py                # 경로·상수
 │   ├── storage.py               # 프로젝트 등록 JSON CRUD
@@ -152,6 +178,7 @@ pyDashboard/
 | `POST` | `/api/projects/<id>/stop` | 강제 중지 |
 | `GET` | `/api/projects/<id>/logs` | 실행 로그 tail |
 | `GET` | `/api/fs?path=<dir>` | 서버 파일시스템 탐색 (경로 선택용, 로컬 전용) |
+| `GET` | `/api/system/detect?script_path=<path>` | 해당 스크립트로 OS에 등록된 스케줄 1회 탐지 |
 | `GET` | `/api/system/schedules` | 시스템 cron + LaunchAgents 전체 파싱 |
 
 ## 라이선스

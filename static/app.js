@@ -39,11 +39,16 @@ const SCHEDULER_LABEL = {
 };
 
 function scheduleSummary(p) {
-  if (p.scheduler_type === "cron" && p.schedule_expr) {
-    return `Cron: <span class="mono">${escapeHtml(p.schedule_expr)}</span>`;
+  // 저장된 값 우선, 없으면 리프레시 시 라이브 매칭된 detected 사용
+  const expr = p.schedule_expr || (p.detected && p.detected.schedule_expr);
+  const plist = p.plist_path || (p.detected && p.detected.plist_path);
+  const live = !p.schedule_expr && !p.plist_path && p.detected ? " <span class=\"badge-live\">자동탐지</span>" : "";
+
+  if (p.scheduler_type === "cron" && expr) {
+    return `Cron: <span class="mono">${escapeHtml(expr)}</span>${live}`;
   }
-  if (p.scheduler_type === "launchagent" && p.plist_path) {
-    return `LaunchAgent: <span class="mono">${escapeHtml(basename(p.plist_path))}</span>`;
+  if (p.scheduler_type === "launchagent" && plist) {
+    return `LaunchAgent: <span class="mono">${escapeHtml(basename(plist))}</span>${live}`;
   }
   return SCHEDULER_LABEL[p.scheduler_type] || p.scheduler_type;
 }
@@ -195,6 +200,34 @@ function toggleSchedulerRows() {
   document.getElementById("row-plist").classList.toggle("hidden", t !== "launchagent");
 }
 
+// cron/launchagent 선택 시 OS 에 이미 등록된 스케줄을 1회 조회해 자동 채움
+async function onSchedulerChange() {
+  toggleSchedulerRows();
+  const t = document.getElementById("f-scheduler_type").value;
+  if (t !== "cron" && t !== "launchagent") return;
+  const scriptPath = document.getElementById("f-script_path").value.trim();
+  if (!scriptPath) {
+    toast("먼저 스크립트 경로를 입력하면 등록된 스케줄을 자동 조회합니다.");
+    return;
+  }
+  try {
+    const det = await api(`/api/system/detect?script_path=${encodeURIComponent(scriptPath)}`);
+    if (!det.found) {
+      toast("시스템에 등록된 스케줄을 찾지 못했습니다.");
+      return;
+    }
+    if (det.scheduler_type === "cron" && det.schedule_expr) {
+      document.getElementById("f-schedule_expr").value = det.schedule_expr;
+      toast(`등록된 cron 발견: ${det.schedule_expr}`);
+    } else if (det.scheduler_type === "launchagent" && det.plist_path) {
+      document.getElementById("f-plist_path").value = det.plist_path;
+      toast(`등록된 LaunchAgent 발견: ${basename(det.plist_path)}`);
+    }
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
 async function onSubmit(e) {
   e.preventDefault();
   const id = document.getElementById("f-id").value;
@@ -310,7 +343,7 @@ async function init() {
   document.getElementById("btn-add").addEventListener("click", openModal);
   document.getElementById("btn-refresh").addEventListener("click", refresh);
   document.getElementById("project-form").addEventListener("submit", onSubmit);
-  document.getElementById("f-scheduler_type").addEventListener("change", toggleSchedulerRows);
+  document.getElementById("f-scheduler_type").addEventListener("change", onSchedulerChange);
 
   // 백드롭 클릭 시 닫기
   document.getElementById("modal").addEventListener("click", (e) => {
