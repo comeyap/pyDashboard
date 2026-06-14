@@ -1,0 +1,8 @@
+# 웹 프레임워크
+Flask>=3.0,<4.0
+
+# 프로세스 모니터링/제어 (PID 추적, terminate/kill, environ 검증)
+psutil>=6.0
+
+# cron 표현식 차기 실행 시각 계산 (croniter 대체 — 유지보수/CRA 이슈 회피)
+cronsim>=2.7

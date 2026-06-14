@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pydashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🐍</span>
+      <h1>Pydashboard</h1>
+    </div>
+    <div class="topbar-actions">
+      <span id="last-updated" class="muted"></span>
+      <button id="btn-refresh" class="btn btn-ghost" title="새로고침">↻</button>
+      <button id="btn-add" class="btn btn-primary">+ 프로젝트 추가</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="empty-state" class="empty hidden">
+      <p>등록된 프로젝트가 없습니다.</p>
+      <button class="btn btn-primary" onclick="openModal()">첫 프로젝트 추가하기</button>
+    </section>
+
+    <div id="grid" class="grid"></div>
+  </main>
+
+  <!-- 프로젝트 추가/수정 모달 -->
+  <div id="modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <h2 id="modal-title">프로젝트 추가</h2>
+      <form id="project-form">
+        <input type="hidden" id="f-id" />
+
+        <label>프로젝트 이름 *
+          <input type="text" id="f-name" required placeholder="예: 일일 리포트 배치" />
+        </label>
+
+        <label>설명
+          <input type="text" id="f-description" placeholder="간단한 설명" />
+        </label>
+
+        <label>스크립트 절대 경로 *
+          <input type="text" id="f-script_path" required placeholder="/Users/me/proj/main.py" />
+        </label>
+
+        <label>Python 실행 경로 (가상환경 등)
+          <input type="text" id="f-python_path" placeholder="/Users/me/proj/.venv/bin/python (기본: python3)" />
+        </label>
+
+        <label>작업 디렉토리
+          <input type="text" id="f-working_dir" placeholder="비우면 스크립트 폴더 사용" />
+        </label>
+
+        <label>실행 인자 (공백 구분)
+          <input type="text" id="f-args" placeholder="--mode prod --verbose" />
+        </label>
+
+        <label>스케줄러 타입
+          <select id="f-scheduler_type">
+            <option value="always_on">상시 실행 (Always-on)</option>
+            <option value="cron">Cron</option>
+            <option value="launchagent">LaunchAgent (macOS)</option>
+            <option value="manual">수동 (Manual)</option>
+          </select>
+        </label>
+
+        <label id="row-cron" class="hidden">Cron 표현식
+          <input type="text" id="f-schedule_expr" placeholder="0 0 * * *  (매일 00:00)" />
+        </label>
+
+        <label id="row-plist" class="hidden">Plist 경로
+          <input type="text" id="f-plist_path" placeholder="~/Library/LaunchAgents/com.me.job.plist" />
+        </label>
+
+        <p id="form-error" class="error hidden"></p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">취소</button>
+          <button type="submit" class="btn btn-primary">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 로그 뷰어 모달 -->
+  <div id="log-modal" class="modal-backdrop hidden">
+    <div class="modal modal-wide">
+      <h2>실행 로그 — <span id="log-title"></span></h2>
+      <pre id="log-content" class="log"></pre>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeLogModal()">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

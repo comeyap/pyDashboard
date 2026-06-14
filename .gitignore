@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# 런타임 데이터 (사용자별 등록 정보/PID/로그)
+data/projects.json
+data/pids/*
+data/logs/*
+!data/pids/.gitkeep
+!data/logs/.gitkeep
+!data/.gitkeep
+
+# bkit 플러그인 상태 (앱과 무관)
+.bkit/
+
+# OS / 에디터
+.DS_Store
+.idea/
+.vscode/
+*.swp
