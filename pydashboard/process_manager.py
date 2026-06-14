@@ -98,6 +98,7 @@ def _find_by_cmdline(identify_path: str) -> Optional[psutil.Process]:
         target_real = os.path.realpath(identify_path)
     except OSError:
         target_real = identify_path
+    target_base = os.path.basename(identify_path)
     self_pid = os.getpid()
 
     for proc in psutil.process_iter(["pid", "cmdline"]):
@@ -114,7 +115,20 @@ def _find_by_cmdline(identify_path: str) -> Optional[psutil.Process]:
                     if os.path.realpath(arg) == target_real:
                         return proc
                 except OSError:
-                    continue
+                    pass
+                # `cd <dir> && python <상대경로>` 형태: 인자가 상대경로이고
+                # 파일명이 같으면 프로세스 cwd 기준으로 절대경로를 복원해 비교.
+                if (
+                    target_base
+                    and not os.path.isabs(arg)
+                    and os.path.basename(arg) == target_base
+                ):
+                    try:
+                        resolved = os.path.realpath(os.path.join(proc.cwd(), arg))
+                        if resolved == target_real:
+                            return proc
+                    except (psutil.AccessDenied, psutil.NoSuchProcess, OSError):
+                        continue
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
     return None

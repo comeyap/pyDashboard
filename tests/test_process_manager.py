@@ -126,3 +126,35 @@ def test_cmdline_detection_exact_match_no_false_positive(sleeper_script, py_exec
     finally:
         proc.terminate()
         proc.wait()
+
+
+def test_cmdline_detection_relative_arg_with_cwd(tmp_path, py_executable):
+    """`cd <dir> && python <상대경로>` 형태(상대 인자 + cwd)도 감지해야 한다."""
+    import textwrap
+
+    script_dir = tmp_path / "proj"
+    script_dir.mkdir()
+    script = script_dir / "worker.py"
+    script.write_text(
+        textwrap.dedent(
+            """
+            import time
+            time.sleep(30)
+            """
+        ).strip()
+    )
+    script_abs = str(script)
+
+    # cwd 를 프로젝트 폴더로 두고 상대경로(worker.py)로 실행 = 크론 패턴 재현
+    proc = subprocess.Popen([py_executable, "worker.py"], cwd=str(script_dir))
+    try:
+        time.sleep(0.8)
+        p = storage.add_project(
+            {"name": "rel", "script_path": script_abs, "scheduler_type": "always_on"}
+        )
+        st = pm.get_status(p)
+        assert st["state"] == pm.STATE_RUNNING
+        assert st["detected_by"] == "cmdline"
+    finally:
+        proc.terminate()
+        proc.wait()
