@@ -27,6 +27,24 @@ def test_cron_invalid_returns_none():
     assert cron.next_run_from_expr("99 99 * * *", base) is None
 
 
+def test_cron_next_run_is_timezone_aware():
+    # 시스템 타임존 기준으로 계산되어야 한다 (tzinfo 존재 + offset 포함 ISO)
+    base = datetime(2026, 6, 14, 10, 0).astimezone()
+    nxt = cron.next_run_from_expr("0 0 * * *", base)
+    assert nxt.tzinfo is not None
+    assert nxt.utcoffset() == base.utcoffset()
+    # isoformat 에 오프셋 표기가 있어야 프론트가 로컬 타임존으로 렌더 가능
+    assert "+" in nxt.isoformat() or "-" in nxt.isoformat()[11:]
+
+
+def test_cron_saturday_lands_on_saturday():
+    # `0 10 * * 6` 은 토요일 → weekday()==5 (월=0..일=6)
+    base = datetime(2026, 6, 14, 10, 0).astimezone()  # 2026-06-14 는 일요일
+    nxt = cron.next_run_from_expr("0 10 * * 6", base)
+    assert nxt.weekday() == 5
+    assert (nxt.hour, nxt.minute) == (10, 0)
+
+
 def test_parse_crontab_text_skips_comments_and_env():
     text = "\n".join(
         [

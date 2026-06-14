@@ -53,12 +53,17 @@ function scheduleSummary(p) {
   return SCHEDULER_LABEL[p.scheduler_type] || p.scheduler_type;
 }
 
+const WEEKDAYS_KO = ["일", "월", "화", "수", "목", "금", "토"];
+
 function fmtNextRun(iso) {
   if (!iso) return "-";
+  // ISO 문자열에 타임존 오프셋이 포함돼 있으므로, Date 는 브라우저(=시스템) 로컬
+  // 타임존으로 표시한다. 요일도 함께 보여준다.
   const d = new Date(iso);
   if (isNaN(d)) return "-";
   const pad = (n) => String(n).padStart(2, "0");
-  const s = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const wd = WEEKDAYS_KO[d.getDay()];
+  const s = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} (${wd}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   return `${s} 예정`;
 }
 
