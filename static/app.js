@@ -153,15 +153,35 @@ async function onDelete(id) {
   } catch (e) { toast(e.message, true); }
 }
 
+let logRefreshTimer = null;
+
+async function fetchLogInto(id) {
+  const data = await api(`/api/projects/${id}/logs?lines=200`);
+  const content = document.getElementById("log-content");
+  const atBottom =
+    content.scrollHeight - content.scrollTop - content.clientHeight < 30;
+  content.textContent = data.log || "(로그 없음)";
+  // 맨 아래를 보고 있었으면 갱신 후에도 최신 줄을 따라간다
+  if (atBottom) content.scrollTop = content.scrollHeight;
+}
+
 async function onLogs(id, name) {
   try {
-    const data = await api(`/api/projects/${id}/logs?lines=200`);
     document.getElementById("log-title").textContent = name;
-    document.getElementById("log-content").textContent = data.log || "(로그 없음)";
+    await fetchLogInto(id);
     document.getElementById("log-modal").classList.remove("hidden");
+    document.getElementById("log-content").scrollTop =
+      document.getElementById("log-content").scrollHeight;
+    // 모달이 열려 있는 동안 2초마다 자동 갱신 (실행 중 로그 실시간 확인)
+    clearInterval(logRefreshTimer);
+    logRefreshTimer = setInterval(() => {
+      fetchLogInto(id).catch(() => {});
+    }, 2000);
   } catch (e) { toast(e.message, true); }
 }
 function closeLogModal() {
+  clearInterval(logRefreshTimer);
+  logRefreshTimer = null;
   document.getElementById("log-modal").classList.add("hidden");
 }
 

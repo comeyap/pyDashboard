@@ -158,3 +158,38 @@ def test_cmdline_detection_relative_arg_with_cwd(tmp_path, py_executable):
     finally:
         proc.terminate()
         proc.wait()
+
+
+def test_start_writes_run_header_immediately(sleeper_script, py_executable):
+    """실행 시작 즉시(자식 출력과 무관하게) 회차 구분 헤더가 로그에 기록돼야 한다."""
+    p = storage.add_project(
+        {"name": "hdr", "script_path": sleeper_script, "python_path": py_executable}
+    )
+    pm.start(p)
+    try:
+        log = pm.tail_log(p)
+        assert "===== 실행 시작" in log
+        assert sleeper_script in log, "헤더에 실행 커맨드가 포함돼야 한다"
+    finally:
+        pm.stop(p)
+
+
+def test_output_visible_while_running_without_flush(tmp_path, py_executable):
+    """flush 없는 print 도 실행 중에 로그 파일에 보여야 한다 (PYTHONUNBUFFERED 주입).
+
+    주입이 없으면 파일 리다이렉트 시 블록 버퍼링 때문에 프로세스가 종료될 때까지
+    출력이 로그에 나타나지 않는다 — '실행했는데 예전 로그만 보이는' 증상의 원인.
+    """
+    script = tmp_path / "buffered.py"
+    script.write_text("import time\nprint('live-log-line')\ntime.sleep(30)\n")
+    p = storage.add_project(
+        {"name": "buf", "script_path": str(script), "python_path": py_executable}
+    )
+    pm.start(p)
+    try:
+        deadline = time.time() + 5
+        while time.time() < deadline and "live-log-line" not in pm.tail_log(p):
+            time.sleep(0.1)
+        assert "live-log-line" in pm.tail_log(p)
+    finally:
+        pm.stop(p)

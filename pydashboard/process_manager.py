@@ -229,12 +229,24 @@ def start(project: dict[str, Any]) -> dict[str, Any]:
 
     env = os.environ.copy()
     env[config.ENV_PROJECT_KEY] = project_id
+    # 자식 python 프로세스의 stdout 버퍼링 해제 — 파일로 리다이렉트하면 기본이
+    # 블록 버퍼링이라 실행 중에는 출력이 로그 파일에 나타나지 않는다.
+    env["PYTHONUNBUFFERED"] = "1"
 
     log_path = _log_file(project_id)
     try:
         log_fh = open(log_path, "ab")
     except OSError as exc:
         raise ProcessError(f"로그 파일을 열 수 없습니다: {exc}") from exc
+
+    # 실행 회차 구분 헤더 — 자식 출력이 아직 없어도 시작 즉시 로그에 표시되고,
+    # 이전 실행(실패 포함) 로그와 새 실행 로그를 구분할 수 있다. 기록 실패는 무시.
+    try:
+        started = datetime.now().astimezone().isoformat(timespec="seconds")
+        log_fh.write(f"\n===== 실행 시작 {started} · {' '.join(cmd)} =====\n".encode())
+        log_fh.flush()
+    except OSError:
+        pass
 
     try:
         proc = subprocess.Popen(
