@@ -16,6 +16,13 @@ rm -rf "$APP"
 # osacompile 로 AppleScript → .app 생성
 osacompile -o "$APP" -e "do shell script \"mkdir -p '$DIR/data/logs'; '$DIR/Pydashboard.command' > '$DIR/data/logs/server.log' 2>&1 &\""
 
+# 앱 아이콘을 🐍 아이콘으로 교체 (기본 AppleScript applet 아이콘 대체)
+# static/pydashboard.icns 는 scripts/make_icon.py 로 생성되어 repo 에 커밋돼 있다.
+if [[ -f "static/pydashboard.icns" ]]; then
+  cp "static/pydashboard.icns" "$APP/Contents/Resources/applet.icns"
+  touch "$APP"   # Finder 아이콘 캐시 갱신
+fi
+
 echo "생성 완료: $DIR/$APP"
 echo "Finder 에서 더블클릭하면 터미널 없이 단독앱 창으로 실행됩니다."
 echo "서버 로그: $DIR/data/logs/server.log"

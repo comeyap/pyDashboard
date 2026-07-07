@@ -241,6 +241,30 @@ def run_window(webview_mod, url: str, title: str = "Pydashboard") -> None:
     webview_mod.start()
 
 
+# 단독앱 창 모드에서 Dock 에 표시할 아이콘 (scripts/make_icon.py 로 생성)
+DOCK_ICON = config.BASE_DIR / "static" / "pydashboard.png"
+
+
+def set_dock_icon(png_path: os.PathLike | str = DOCK_ICON) -> bool:
+    """실행 중 프로세스의 Dock 아이콘을 🐍 아이콘으로 교체한다.
+
+    python 인터프리터로 뜬 GUI 는 기본 Python 아이콘으로 표시되므로,
+    창을 띄우기 전에 NSApplication 아이콘을 직접 지정한다.
+    실패(비 macOS / 파일 없음)해도 앱 동작에는 영향 없다.
+    """
+    if not os.path.isfile(png_path):
+        return False
+    try:
+        appkit = importlib.import_module("AppKit")
+    except ImportError:
+        return False
+    image = appkit.NSImage.alloc().initWithContentsOfFile_(str(png_path))
+    if image is None:
+        return False
+    appkit.NSApplication.sharedApplication().setApplicationIconImage_(image)
+    return True
+
+
 app = create_app()
 
 
@@ -272,6 +296,7 @@ if __name__ == "__main__":
     webview_mod = _import_webview() if (_should_use_window() and not debug) else None
     if webview_mod is not None:
         start_server_thread(app, host, port)
+        set_dock_icon()
         run_window(webview_mod, url)
     else:
         # 브라우저 모드 (PYDASHBOARD_WINDOW=0 / pywebview 미설치 / debug)

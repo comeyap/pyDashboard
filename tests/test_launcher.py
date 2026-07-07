@@ -94,6 +94,39 @@ def test_start_server_thread_runs_flask_app_as_daemon():
     assert thread.daemon is True
 
 
+def test_icon_assets_exist():
+    png = ROOT / "static" / "pydashboard.png"
+    icns = ROOT / "static" / "pydashboard.icns"
+    assert png.is_file() and png.stat().st_size > 0
+    assert png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", "유효한 PNG 여야 한다"
+    assert icns.is_file() and icns.stat().st_size > 0
+    assert icns.read_bytes()[:4] == b"icns", "유효한 icns 여야 한다"
+
+
+def test_set_dock_icon_missing_file(tmp_path):
+    assert app_module.set_dock_icon(tmp_path / "no-icon.png") is False
+
+
+def test_set_dock_icon_without_appkit(monkeypatch):
+    def raise_import_error(name):
+        raise ImportError(name)
+
+    monkeypatch.setattr(app_module.importlib, "import_module", raise_import_error)
+    assert app_module.set_dock_icon(app_module.DOCK_ICON) is False
+
+
+def test_index_declares_favicon():
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+    assert 'rel="icon"' in html
+    assert "pydashboard.png" in html
+
+
+def test_build_app_script_installs_icon():
+    script = (ROOT / "scripts" / "build_macos_app.sh").read_text(encoding="utf-8")
+    assert "pydashboard.icns" in script
+    assert "applet.icns" in script
+
+
 def test_launcher_command_exists_and_executable():
     cmd = ROOT / "Pydashboard.command"
     assert cmd.is_file()
