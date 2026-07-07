@@ -23,8 +23,9 @@ ENV_PROJECT_KEY = "PYDASHBOARD_PROJECT_ID"
 # UI 폴링과는 별개로, 시스템 스케줄 캐시 무효화 기준으로 사용한다.
 SCHEDULE_REFRESH_SEC = int(os.environ.get("PYDASHBOARD_SCHEDULE_REFRESH", "60"))
 
-# UI 기본 폴링 주기(초).
-UI_POLL_SEC = int(os.environ.get("PYDASHBOARD_UI_POLL", "5"))
+# UI 기본 폴링 주기(초). 기본 하루 1회 — 수동 새로고침 버튼과
+# 시작/중지 등 액션 직후 갱신은 폴링과 무관하게 즉시 수행된다.
+UI_POLL_SEC = int(os.environ.get("PYDASHBOARD_UI_POLL", "86400"))
 
 
 def ensure_dirs() -> None:
