@@ -92,7 +92,7 @@ function renderCard(p) {
       <dl class="meta">
         <dt>스케줄</dt><dd>${scheduleSummary(p)}</dd>
         <dt>실행 예정</dt><dd>${fmtNextRun(p.next_run)}</dd>
-        <dt>스크립트</dt><dd class="mono">${escapeHtml(p.script_path)}</dd>
+        <dt>스크립트</dt><dd class="mono" title="${escapeHtml(p.script_path)}">${escapeHtml(basename(p.script_path))}</dd>
         ${pidInfo ? `<dt>프로세스</dt><dd class="mono">${pidInfo}</dd>` : ""}
       </dl>
 
