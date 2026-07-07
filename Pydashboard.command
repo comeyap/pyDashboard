@@ -13,13 +13,13 @@ if [[ ! -x ".venv/bin/python" ]]; then
 fi
 
 # 2) 의존성 보장 (핵심 패키지 import 실패 시에만 설치)
-if ! .venv/bin/python -c "import flask, psutil, cronsim" >/dev/null 2>&1; then
+if ! .venv/bin/python -c "import flask, psutil, cronsim, webview" >/dev/null 2>&1; then
   echo "[Pydashboard] 의존성 설치 중..."
   .venv/bin/python -m pip install --quiet --upgrade pip
   .venv/bin/python -m pip install --quiet -r requirements.txt
 fi
 
-# 3) 서버 시작 (app.py 가 브라우저를 자동으로 연다)
-echo "[Pydashboard] 서버를 시작합니다. 브라우저가 자동으로 열립니다."
-echo "[Pydashboard] 종료하려면 이 창에서 Ctrl+C 를 누르세요."
+# 3) 서버 시작 (기본: 단독앱 창 모드. 창을 닫으면 서버도 종료)
+echo "[Pydashboard] 서버를 시작합니다. 대시보드 창이 열립니다."
+echo "[Pydashboard] 터미널 없이 쓰려면 Pydashboard.app 을 더블클릭하세요 (./scripts/build_macos_app.sh 로 생성)."
 exec .venv/bin/python app.py

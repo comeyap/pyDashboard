@@ -33,6 +33,7 @@
 | LaunchAgent 파싱 | **plistlib** (표준) | `StartCalendarInterval`/`StartInterval` → 다음 실행 시각 |
 | 저장소 | JSON 파일 | `data/projects.json` (원자적 쓰기) |
 | 프론트엔드 | Vanilla JS | 빌드 도구 불필요 |
+| 단독앱 창 | **pywebview** | macOS WKWebView 네이티브 창. 미설치 시 브라우저 모드로 폴백 |
 
 ## 설치
 
@@ -50,30 +51,34 @@ pip install -r requirements.txt
 
 ## 실행
 
-### 원클릭 실행 (macOS, 권장)
+### 단독앱 실행 (macOS, 권장)
 
-Finder 에서 **`Pydashboard.command`** 을 더블클릭하면 가상환경 준비 → 서버 시작 →
-브라우저 자동 오픈까지 한 번에 진행됩니다. (터미널에서 `python app.py` 를 칠 필요 없음)
+한 번만 `./scripts/build_macos_app.sh` 를 실행해 `Pydashboard.app` 을 만든 뒤,
+Finder 에서 **`Pydashboard.app`** 을 더블클릭하세요.
+**터미널 창 없이** 가상환경 준비 → 서버 시작 → **네이티브 대시보드 창**(pywebview)까지
+한 번에 진행됩니다. 창을 닫으면 서버도 함께 종료됩니다.
+서버 출력은 `data/logs/server.log` 에 남습니다.
 
-> **단일 인스턴스 (재시작 방식)** — 여러 번 더블클릭해도 서버는 하나만 유지됩니다.
-> 이미 실행 중이면 **기존 인스턴스를 종료하고 새로 시작**합니다. 따라서 `git pull` 로
+> **단일 인스턴스 (재시작 방식)** — 여러 번 더블클릭해도 창/서버는 하나만 유지됩니다.
+> 이미 실행 중이면 **기존 인스턴스를 종료(창 닫힘)하고 새로 시작**합니다. 따라서 `git pull` 로
 > 코드를 갱신한 뒤 다시 실행하면 항상 최신 코드가 반영됩니다.
 > (`/api/ping` 으로 우리 인스턴스만 식별 + `data/server.json` lock 의 pid/port 로 종료 대상 특정)
 
-> 터미널 창 없이 앱처럼 띄우고 싶으면 한 번만 `./scripts/build_macos_app.sh` 를 실행해
-> `Pydashboard.app` 을 만든 뒤, 그 앱을 더블클릭하세요.
+> `Pydashboard.command` 더블클릭도 동일하게 동작하지만 **터미널 창이 함께 열립니다**
+> (더블클릭할 때마다 새 터미널 창이 쌓임 — 디버깅용). 평소에는 `Pydashboard.app` 을 쓰세요.
 
 ### 터미널 실행
 
 ```bash
-python app.py     # 기동 후 브라우저가 자동으로 열립니다
+python app.py                       # 단독앱 창 모드 (pywebview 설치 시)
+PYDASHBOARD_WINDOW=0 python app.py  # 브라우저 모드
 ```
 
 기본적으로 `http://127.0.0.1:8800` 에서 대시보드가 열립니다.
 **포트 8800이 이미 사용 중이면 자동으로 다음 빈 포트(8801, 8802, …)를 찾아 시작**하고,
-실제 주소를 콘솔에 출력한 뒤 그 주소로 브라우저를 엽니다.
+실제 주소를 콘솔에 출력합니다.
 우측 상단 **`+ 프로젝트 추가`** 버튼으로 모니터링할 Python 프로젝트를 등록하세요.
-브라우저 자동 열기를 끄려면 `PYDASHBOARD_NO_BROWSER=1` 을 설정합니다.
+브라우저 모드에서 자동 열기를 끄려면 `PYDASHBOARD_NO_BROWSER=1` 을 설정합니다.
 
 ## 테스트
 
@@ -92,8 +97,9 @@ python -m pytest tests/ -q
 | `PYDASHBOARD_PORT` | `8800` | 포트 |
 | `PYDASHBOARD_UI_POLL` | `5` | UI 자동 갱신 주기(초) |
 | `PYDASHBOARD_SCHEDULE_REFRESH` | `60` | 시스템 스케줄 재파싱 기준(초) |
-| `PYDASHBOARD_DEBUG` | `0` | `1`이면 Flask 디버그 모드 |
-| `PYDASHBOARD_NO_BROWSER` | `0` | `1`이면 시작 시 브라우저 자동 열기 끔 |
+| `PYDASHBOARD_DEBUG` | `0` | `1`이면 Flask 디버그 모드 (브라우저 모드로 동작) |
+| `PYDASHBOARD_WINDOW` | `1` | `0`이면 단독앱 창 대신 브라우저로 열기 |
+| `PYDASHBOARD_NO_BROWSER` | `0` | `1`이면 브라우저 모드에서 자동 열기 끔 |
 
 예시:
 
@@ -140,9 +146,9 @@ PYDASHBOARD_PORT=9000 PYDASHBOARD_UI_POLL=3 python app.py
 
 ```
 pyDashboard/
-├── app.py                       # 애플리케이션 진입점 (+ 브라우저 자동 열기)
-├── Pydashboard.command          # macOS 원클릭 실행기 (더블클릭)
-├── scripts/build_macos_app.sh   # (선택) .app 번들 생성
+├── app.py                       # 애플리케이션 진입점 (단독앱 창 / 브라우저 모드)
+├── Pydashboard.command          # macOS 원클릭 실행기 (터미널 창 동반 — 디버깅용)
+├── scripts/build_macos_app.sh   # Pydashboard.app 번들 생성 (터미널 없이 실행, 권장)
 ├── requirements.txt
 ├── requirements-dev.txt         # 테스트 의존성(pytest)
 ├── tests/                       # pytest 스위트 (storage/schedulers/process/api/detect/launcher)

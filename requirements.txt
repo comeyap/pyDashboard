@@ -6,3 +6,6 @@ psutil>=6.0
 
 # cron 표현식 차기 실행 시각 계산 (croniter 대체 — 유지보수/CRA 이슈 회피)
 cronsim>=2.7
+
+# 단독앱(네이티브 창) 모드 — macOS WKWebView 기반. 미설치 시 브라우저 모드로 폴백
+pywebview>=5.0

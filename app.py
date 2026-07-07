@@ -1,16 +1,19 @@
 """Pydashboard 애플리케이션 진입점.
 
 실행:
-    python app.py
+    python app.py                     # 단독앱(네이티브 창) 모드 (pywebview 설치 시)
+    PYDASHBOARD_WINDOW=0 python app.py  # 브라우저 모드
     PYDASHBOARD_PORT=8800 python app.py
 
 원클릭 실행:
-    Finder 에서 Pydashboard.command 더블클릭 (macOS)
+    Finder 에서 Pydashboard.app 더블클릭 (터미널 없이 실행, macOS)
+    또는 Pydashboard.command 더블클릭 (터미널 창에서 실행)
 """
 
 from __future__ import annotations
 
 import atexit
+import importlib
 import json
 import os
 import socket
@@ -205,6 +208,39 @@ def open_browser_later(url: str, delay: float = 1.2):
     return timer
 
 
+def _should_use_window() -> bool:
+    """단독앱(네이티브 창) 모드 여부. PYDASHBOARD_WINDOW=0 이면 브라우저 모드."""
+    return os.environ.get("PYDASHBOARD_WINDOW", "1") != "0"
+
+
+def _import_webview():
+    """pywebview 모듈을 로드한다. 미설치 환경이면 None (브라우저 모드로 폴백)."""
+    try:
+        return importlib.import_module("webview")
+    except ImportError:
+        return None
+
+
+def start_server_thread(flask_app: Flask, host: str, port: int) -> threading.Thread:
+    """Flask 서버를 데몬 스레드로 시작한다.
+
+    네이티브 창(Cocoa 이벤트 루프)이 메인 스레드를 점유해야 하므로,
+    창 모드에서는 서버가 백그라운드 스레드로 돈다.
+    """
+    thread = threading.Thread(
+        target=lambda: flask_app.run(host=host, port=port, use_reloader=False),
+        daemon=True,
+    )
+    thread.start()
+    return thread
+
+
+def run_window(webview_mod, url: str, title: str = "Pydashboard") -> None:
+    """pywebview 네이티브 창을 열고, 창이 닫힐 때까지 블로킹한다."""
+    webview_mod.create_window(title, url, width=1280, height=860)
+    webview_mod.start()
+
+
 app = create_app()
 
 
@@ -231,8 +267,14 @@ if __name__ == "__main__":
     _write_lock(host, port)
     atexit.register(_clear_lock)
 
-    # 디버그(리로더) 모드에서는 중복 오픈을 피하기 위해 자동 열기 생략
-    if not debug:
-        open_browser_later(url)
-
-    app.run(host=host, port=port, debug=debug)
+    # 단독앱(네이티브 창) 모드 — 창을 닫으면 서버도 함께 종료된다.
+    # 디버그(리로더) 모드는 메인 스레드가 필요하므로 브라우저 모드로 동작.
+    webview_mod = _import_webview() if (_should_use_window() and not debug) else None
+    if webview_mod is not None:
+        start_server_thread(app, host, port)
+        run_window(webview_mod, url)
+    else:
+        # 브라우저 모드 (PYDASHBOARD_WINDOW=0 / pywebview 미설치 / debug)
+        if not debug:
+            open_browser_later(url)
+        app.run(host=host, port=port, debug=debug)
