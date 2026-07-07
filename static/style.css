@@ -31,6 +31,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* 창이 좁으면 actions 줄이 찌그러지는 대신 브랜드 아래로 내려간다.
+     줄별로 space-between 이 적용돼 내려간 줄은 왼쪽 정렬이 된다. */
+  flex-wrap: wrap;
+  gap: 8px 16px;
   padding: 16px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -41,7 +45,9 @@ body {
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand h1 { font-size: 1.3rem; font-weight: 600; }
 .logo { font-size: 1.5rem; }
-.topbar-actions { display: flex; align-items: center; gap: 12px; }
+.topbar-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.topbar-actions .btn,
+#last-updated { white-space: nowrap; }
 
 /* Buttons */
 .btn {
