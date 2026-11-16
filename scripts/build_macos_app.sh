@@ -29,6 +29,10 @@ if [[ -f "static/pydashboard.icns" ]]; then
   touch "$APP"   # Finder 아이콘 캐시 갱신
 fi
 
+# Info.plist·아이콘 교체 뒤에는 서명이 깨지므로, 마지막에 다시 서명한다.
+# 서명이 깨진 채로 두면 macOS가 교체한 아이콘을 무시하고 기본 두루마리 아이콘을 보여줄 수 있다.
+codesign --force --deep --sign - "$APP"
+
 echo "생성 완료: $DIR/$APP"
 echo "Finder 에서 더블클릭하면 터미널 없이 단독앱 창으로 실행됩니다."
 echo "서버 로그: $DIR/data/logs/server.log"
